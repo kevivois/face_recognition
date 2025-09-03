@@ -19,14 +19,14 @@ app = FastAPI(title="Face Recognition API")
 _raw = os.getenv("CORS_ALLOW_ORIGINS", "")
 ALLOWED_ORIGINS = [o.strip() for o in _raw.split(",") if o.strip()]
 
-'''
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,           # ex: ["http://localhost:59371","https://ton-domaine"]
+    allow_origins=["*"],           # ex: ["http://localhost:59371","https://ton-domaine"]
     allow_methods=["*"],
     allow_headers=["*"],
     allow_credentials=True,                 # IMPORTANT: laisse False si tu utilises "*" ou regex
-)'''
+)
 
 # --------- Schemas ---------
 class FaceReq(BaseModel):
