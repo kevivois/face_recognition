@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: face-recognition-api
+    env: docker
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: MODEL_NAME
+        value: Facenet512
+      - key: DETECTOR
+        value: mediapipe
+      - key: CORS_ALLOW_ORIGINS
+        value: "*"   # mets ton domaine Flutter web, ex: https://app.exemple.com
