@@ -18,13 +18,12 @@ app = FastAPI(title="Face Recognition API")
 
 ALLOWED_ORIGINS = [ "http://localhost:37729"]
 
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,           # ex: ["http://localhost:59371","https://ton-domaine"]
+    allow_origin_regex=r"http://localhost:\d+",  # Autorise http://localhost avec n'importe quel port
     allow_methods=["*"],
     allow_headers=["*"],
-    allow_credentials=False,                 # IMPORTANT: laisse False si tu utilises "*" ou regex
+    allow_credentials=True, # Vous pouvez mettre True, la regex est compatible
 )
 
 # --------- Schemas ---------
