@@ -22,10 +22,9 @@ ALLOWED_ORIGINS = [o.strip() for o in _raw.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,           # ex: ["http://localhost:59371","https://ton-domaine"]
-    allow_origin_regex=r"^http://localhost(:\d+)?$",  # autorise localhost sur n'importe quel port (dev)
     allow_methods=["*"],
     allow_headers=["*"],
-    allow_credentials=False,                 # IMPORTANT: laisse False si tu utilises "*" ou regex
+    allow_credentials=True,                 # IMPORTANT: laisse False si tu utilises "*" ou regex
 )
 
 # --------- Schemas ---------
