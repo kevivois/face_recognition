@@ -6,3 +6,5 @@ numpy==1.26.4
 deepface==0.0.93
 opencv-python-headless==4.10.0.84
 mediapipe==0.10.14
+tf-keras~=2.19.0
+tensorflow==2.19.1
