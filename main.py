@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from deepface import DeepFace
 
 # --------- Config ---------
-MODEL_NAME = os.getenv("MODEL_NAME", "Facenet512")  # alternatives: "Facenet", "ArcFace"
+MODEL_NAME = os.getenv("MODEL_NAME", "SFace")  # alternatives: "Facenet", "ArcFace"
 DETECTOR   = os.getenv("DETECTOR", "mediapipe")     # + stable sur Render que retinaface
 ALIGN      = True
 ENFORCE    = True  # lèvera ValueError s'il n'y a pas de visage
