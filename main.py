@@ -6,6 +6,14 @@ from fastapi import FastAPI, Body
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from deepface import DeepFace
+import firebase_admin
+from firebase_admin import credentials, auth, firestore
+
+try:
+    firebase_admin.initialize_app()
+except ValueError:
+    print("Firebase Admin SDK already initialized.")
+db = firestore.client()
 
 # --------- Config ---------
 MODEL_NAME = os.getenv("MODEL_NAME", "Facenet")  # alternatives: "Facenet", "ArcFace"
@@ -27,9 +35,9 @@ app.add_middleware(
 )
 
 # --------- Schemas ---------
-class FaceReq(BaseModel):
-    image_base64: Optional[str] = Field(None, description="PNG/JPEG base64 sans header data:")
-    img_path: Optional[str]     = Field(None, description="Chemin serveur (debug)")
+class FaceLoginReq(BaseModel):
+    user_id: str = Field(description="Firebase Auth UID of the user trying to log in.")
+    probe_base64: str = Field(description="Base64 of the new face picture.")
 
 class VerifyReq(BaseModel):
     # soit 2 images, soit 1 image + un template d'embedding
@@ -95,35 +103,38 @@ def represent(req: FaceReq):
     except Exception as e:
         return {"ok": False, "error": f"Unhandled: {e}"}
 
-@app.post("/face/verify")
-def verify(req: VerifyReq):
+@app.post("/face/login")
+def face_login(req: FaceLoginReq):
     try:
-        if not req.probe_base64:
-            return {"ok": False, "error": "probe_base64 required"}
+        # 1. Récupérer l'empreinte faciale stockée de l'utilisateur depuis Firestore
+        user_doc_ref = db.collection('users').document(req.user_id)
+        user_doc = user_doc_ref.get()
+        if not user_doc.exists:
+            raise HTTPException(status_code=404, detail="User not found.")
+        
+        user_data = user_doc.to_dict()
+        stored_embedding = user_data.get('deepfaceEmbedding')
+        if not stored_embedding:
+            raise HTTPException(status_code=400, detail="User has not enrolled in facial recognition.")
 
-        # Embedding probe
-        probe = _represent_bgr(_b64_to_bgr(req.probe_base64))["embedding"]
+        # 2. Créer une empreinte à partir de la nouvelle image
+        probe_embedding = _represent_bgr(_b64_to_bgr(req.probe_base64))["embedding"]
+        
+        # 3. Comparer les deux empreintes
+        score = _cosine(probe_embedding, stored_embedding)
+        is_match = score >= 0.70  # Seuil de confiance
 
-        # Embedding ref: soit image, soit vecteur fourni
-        if req.ref_embedding is not None:
-            ref = req.ref_embedding
-        elif req.ref_base64:
-            ref = _represent_bgr(_b64_to_bgr(req.ref_base64))["embedding"]
-        else:
-            return {"ok": False, "error": "Provide ref_base64 or ref_embedding"}
+        if not is_match:
+            raise HTTPException(status_code=401, detail="Face not recognized.")
 
-        metric = req.metric
-        if metric == "cosine":
-            score = _cosine(probe, ref)
-            threshold = req.threshold if req.threshold is not None else 0.70
-            match = score >= threshold
-        else:
-            score = _l2(probe, ref)
-            threshold = req.threshold if req.threshold is not None else 1.20
-            match = score <= threshold
+        # 4. Si la correspondance est bonne, générer un token de connexion personnalisé
+        custom_token = auth.create_custom_token(req.user_id)
 
-        return {"ok": True, "match": match, "score": score, "metric": metric, "threshold": threshold}
-    except ValueError as ve:
+        return {"ok": True, "token": custom_token}
+
+    except HTTPException as http_exc:
+        return {"ok": False, "error": http_exc.detail}
+    except ValueError as ve: # Erreur si DeepFace ne trouve pas de visage
         return {"ok": False, "error": f"{ve}"}
     except Exception as e:
-        return {"ok": False, "error": f"Unhandled: {e}"}
+        return {"ok": False, "error": f"An unexpected error occurred: {e}"}
