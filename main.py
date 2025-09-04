@@ -38,6 +38,9 @@ app.add_middleware(
 class FaceLoginReq(BaseModel):
     user_id: str = Field(description="Firebase Auth UID of the user trying to log in.")
     probe_base64: str = Field(description="Base64 of the new face picture.")
+class FaceReq(BaseModel):
+    image_base64: Optional[str] = Field(None, description="PNG/JPEG base64 sans header data:")
+    img_path: Optional[str]     = Field(None, description="Chemin serveur (debug)")
 
 class VerifyReq(BaseModel):
     # soit 2 images, soit 1 image + un template d'embedding
