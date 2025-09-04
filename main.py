@@ -28,7 +28,7 @@ ALLOWED_ORIGINS = [ "http://localhost:37729"]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"http://localhost:\d+",  # Autorise http://localhost avec n'importe quel port
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
     allow_credentials=True, # Vous pouvez mettre True, la regex est compatible
