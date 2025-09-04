@@ -2,7 +2,7 @@ import os, io, base64
 from typing import Optional, List, Dict, Any
 from PIL import Image
 import numpy as np
-from fastapi import FastAPI, Body
+from fastapi import FastAPI, Body , HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from deepface import DeepFace
