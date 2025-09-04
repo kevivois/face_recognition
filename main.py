@@ -109,7 +109,6 @@ def represent(req: FaceReq):
 @app.post("/face/login")
 def face_login(req: FaceLoginReq):
     try:
-        # 1. Récupérer l'empreinte faciale stockée de l'utilisateur depuis Firestore
         user_doc_ref = db.collection('users').document(req.user_id)
         user_doc = user_doc_ref.get()
         if not user_doc.exists:
@@ -120,24 +119,41 @@ def face_login(req: FaceLoginReq):
         if not stored_embedding:
             raise HTTPException(status_code=400, detail="User has not enrolled in facial recognition.")
 
-        # 2. Créer une empreinte à partir de la nouvelle image
-        probe_embedding = _represent_bgr(_b64_to_bgr(req.probe_base64))["embedding"]
+        # MODIFIÉ : On décode l'image une seule fois
+        probe_bgr = _b64_to_bgr(req.probe_base64)
+        probe_embedding = _represent_bgr(probe_bgr)["embedding"]
         
-        # 3. Comparer les deux empreintes
+        # MODIFIÉ : 1. Première vérification (image normale)
         score = _cosine(probe_embedding, stored_embedding)
-        is_match = score >= 0.70  # Seuil de confiance
+        is_match = score >= 0.70
 
+        # MODIFIÉ : 2. Si la première échoue, on tente avec l'image inversée
+        if not is_match:
+            print("Initial match failed. Trying with flipped image.") # Log pour le débogage
+            try:
+                # Inversion horizontale de l'image (effet miroir)
+                flipped_bgr = probe_bgr[:, ::-1, :] 
+                flipped_embedding = _represent_bgr(flipped_bgr)["embedding"]
+                
+                flipped_score = _cosine(flipped_embedding, stored_embedding)
+                print(f"Flipped score: {flipped_score}") # Log pour le débogage
+                
+                # On met à jour le statut de correspondance
+                is_match = flipped_score >= 0.70
+            except ValueError:
+                # Si DeepFace ne trouve pas de visage dans l'image inversée, on considère que c'est un échec
+                is_match = False
+
+        # MODIFIÉ : 3. Décision finale
         if not is_match:
             raise HTTPException(status_code=401, detail="Face not recognized.")
 
-        # 4. Si la correspondance est bonne, générer un token de connexion personnalisé
+        # 4. Si une des deux vérifications a réussi, on génère le token
         custom_token = auth.create_custom_token(req.user_id)
 
         return {"ok": True, "token": custom_token}
 
-    except HTTPException as http_exc:
-        return {"ok": False, "error": http_exc.detail}
-    except ValueError as ve: # Erreur si DeepFace ne trouve pas de visage
-        return {"ok": False, "error": f"{ve}"}
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=f"No face detected in the image: {ve}")
     except Exception as e:
-        return {"ok": False, "error": f"An unexpected error occurred: {e}"}
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {e}")
